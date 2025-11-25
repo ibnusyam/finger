@@ -61,3 +61,12 @@ func (s *UserService) DeleteUser(id string) error {
 
 	return nil
 }
+
+func (s *UserService) GetAllUser() ([]model.UserResponse, error) {
+	rows, err := s.UserRepo.GetAllUser()
+	if err != nil {
+		return nil, fmt.Errorf("gagal menjalankan service :%w", err)
+	}
+
+	return rows, nil
+}

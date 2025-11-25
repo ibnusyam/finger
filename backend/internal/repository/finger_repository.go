@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"Steril-App/model"
 	"database/sql"
 	"fmt"
 	"log"
@@ -73,4 +74,24 @@ func (repo *FingerRepository) FindNikByID(id int) (string, error) {
 		return "", fmt.Errorf("gagal menjalankan query :%w", err)
 	}
 	return nik, nil
+}
+
+func (repo *FingerRepository) GetDataFingerUser(nik string) error {
+	query := `SELECT finger_id FROM fingerid where nik = $1`
+	result, err := repo.DB.Query(query, nik)
+	if err != nil {
+		return fmt.Errorf("gagal melakukan pencarian data :%w", err)
+	}
+
+	var fingers []model.FingerID
+
+	for result.Next() {
+		var finger = model.FingerID{}
+		result.Scan(&finger.FingerID)
+
+		fingers = append(fingers, finger)
+	}
+
+	fmt.Println(fingers)
+	return nil
 }

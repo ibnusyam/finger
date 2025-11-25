@@ -72,3 +72,12 @@ func (h *UserHandler) DeleteUser(c echo.Context) error {
 		"message": "Pengguna berhasil dihapus",
 	})
 }
+
+func (h *UserHandler) GetAllUser(c echo.Context) error {
+
+	rows, err := h.Service.GetAllUser()
+	if err != nil {
+		return c.JSON(http.StatusBadGateway, "error")
+	}
+	return c.JSON(http.StatusOK, rows)
+}

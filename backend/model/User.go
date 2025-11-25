@@ -9,6 +9,12 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type UserResponse struct {
+	ID       int    `json:"id"`
+	NIK      string `json:"nik"`
+	FullName string `json:"full_name"`
+}
+
 type CreateUserRequest struct {
 	NIK      string `json:"nik"`
 	FullName string `json:"full_name"`

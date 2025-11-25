@@ -15,3 +15,7 @@ type SensorResponse struct {
 type AddFingerRequest struct {
 	Nik string `json:"nik"`
 }
+
+type FingerID struct {
+	FingerID string
+}

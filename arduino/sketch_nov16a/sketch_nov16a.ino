@@ -9,14 +9,18 @@
 // --- KONFIGURASI WIFI & SERVER ---
 const char* ssid = "Ibnu";
 const char* password = "12345678";
-const char* backend_ip = "192.168.1.7"; 
+const char* backend_ip = "192.168.0.2"; 
 const int backend_port = 8080;
 
-// --- PIN DEFINITION ---
-// Pastikan Kabel Sensor: Hijau ke D6, Putih ke D5 (Jika gagal, TUKAR)
-SoftwareSerial mySerial(D6, D5); // RX=D5, TX=D6
+// const char* ssid = "2.4G";
+// const char* password = "Qw3rtyGrapha2023";
+// const char* backend_ip = "192.168.0.58"; 
+// const int backend_port = 8080;
 
-// Pin Buzzer (Positif ke D7, Negatif ke GND)
+
+
+// --- PIN DEFINITION ---
+SoftwareSerial mySerial(D6, D5); // RX=D5, TX=D6
 const int pinBuzzer = D7; 
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -27,9 +31,14 @@ Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
 unsigned long previousMillis = 0;
 const long interval = 2000; 
 
-// Variabel untuk Auto-Reconnect Sensor
 bool sensorConnected = false;
 unsigned long lastCheckSensor = 0;
+bool isBackendConnected = false;
+
+// --- VARIABEL FLAGS (BENDERA) ---
+// Digunakan untuk memindahkan tugas berat dari Event ke Loop
+bool enrollRequested = false;
+int enrollId = 0;
 
 // --- FUNGSI SMART DELAY ---
 void smartDelay(unsigned long ms) {
@@ -46,7 +55,7 @@ void beep(int jumlah, int durasi) {
     digitalWrite(pinBuzzer, HIGH);
     smartDelay(durasi); 
     digitalWrite(pinBuzzer, LOW);
-    if (jumlah > 1) smartDelay(100); // Jeda antar bunyi
+    if (jumlah > 1) smartDelay(100);
   }
 }
 
@@ -75,6 +84,7 @@ void kirimDataKeBackend(String action, int idJari, String status, String pemicu)
     Serial.println(">> Data Terkirim: " + jsonString);
   } else {
     Serial.println("!! Gagal Kirim: WebSocket Terputus !!");
+    isBackendConnected = false;
   }
 }
 
@@ -100,7 +110,7 @@ void scanAllFinger() {
   
   Serial.println("== Selesai Memindai ==");
   kirimDataKeBackend("SCAN", templatesTerpakai, "SUCCES", "Alat-1");
-  beep(2, 100); // Bunyi selesai
+  beep(2, 100); 
 }
 
 // --- FUNGSI HAPUS JARI ---
@@ -112,11 +122,11 @@ void deleteFingerprint(uint8_t id) {
 
   if (p == FINGERPRINT_OK) {
     Serial.println("SUKSES: ID dihapus!");
-    beep(2, 200); // Bunyi sukses hapus
+    beep(2, 200); 
     kirimDataKeBackend("DELETE", id, "SUCCES", "Alat-1");
   } else {
     Serial.print("Error Hapus: 0x"); Serial.println(p, HEX);
-    beep(3, 50); // Bunyi error
+    beep(3, 50); 
   }
 }
 
@@ -138,7 +148,7 @@ void getFingerprintEnroll(uint8_t id) {
   finger.image2Tz(1);
   Serial.println("Gambar 1 diambil.");
   printToDisplay("Angkat Jari", "Sekarang");
-  beep(1, 100); // Bunyi pendek
+  beep(1, 100); 
   
   smartDelay(2000); 
 
@@ -161,7 +171,7 @@ void getFingerprintEnroll(uint8_t id) {
   if (finger.createModel() != FINGERPRINT_OK) {
     Serial.println("Gagal cocok!");
     printToDisplay("Jari Tidak", "Cocok/Gagal");
-    beep(3, 100); // Bunyi error
+    beep(3, 100); 
     return;
   }
  
@@ -172,8 +182,10 @@ void getFingerprintEnroll(uint8_t id) {
  
   Serial.printf("SUKSES SIMPAN ID #%d\n", id);
   printToDisplay("DAFTAR SUKSES", "ID: " + String(id));
-  beep(1, 1000); // Bunyi Panjang Sukses
+  beep(1, 1000); 
   kirimDataKeBackend("ADD", id, "SUCCES", "Alat-1");
+  smartDelay(2000);
+  printToDisplay("Siap Scan", "Tempel Jari");
 }
 
 // --- WEBSOCKET EVENT ---
@@ -181,11 +193,13 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
   switch(type) {
     case WStype_DISCONNECTED:
       Serial.println("[WS] Terputus!");
+      isBackendConnected = false;
       printToDisplay("Server Terputus", "Reconnecting...");
       break;
     case WStype_CONNECTED:
       Serial.println("[WS] Terhubung!");
-      printToDisplay("Server OK", "Siap Scan");
+      isBackendConnected = true;
+      printToDisplay("Server OK", "");
       beep(1, 100);
       break;
     case WStype_TEXT:
@@ -198,7 +212,10 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       const char* command = doc["Command"];
       
       if (strcmp(command, "DAFTAR_BARU") == 0) {
-        getFingerprintEnroll(atoi(doc["id"])); 
+        // JANGAN panggil getFingerprintEnroll di sini (bisa bikin crash/timeout)
+        // Aktifkan bendera agar loop() yang mengerjakannya
+        enrollId = atoi(doc["id"]);
+        enrollRequested = true;
       } else if(strcmp(command, "SCAN") == 0){
         scanAllFinger();
       } else if(strcmp(command, "DELETE") == 0){
@@ -212,15 +229,12 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 void setup() {
   Serial.begin(115200);
   
-  // Setup Buzzer
   pinMode(pinBuzzer, OUTPUT);
   digitalWrite(pinBuzzer, LOW);
 
-  // Setup LCD
   lcd.init();                      
   lcd.backlight();
   
-  // Setup WiFi
   WiFi.begin(ssid, password);
   printToDisplay("Menghubungkan", "Wifi...");
   while (WiFi.status() != WL_CONNECTED) {
@@ -228,31 +242,28 @@ void setup() {
   }
   printToDisplay("WiFi OK", WiFi.localIP().toString());
   Serial.println("\nWiFi Connected");
-  beep(2, 100); // Bunyi 2x tanda Wifi Konek
+  beep(2, 100);
   delay(1000);
 
-  // Setup Sensor Awal (Tanpa while(1))
   finger.begin(57600);
   if (finger.verifyPassword()) {
     Serial.println("Sensor ditemukan!");
-    printToDisplay("Siap Scan", "Tempel Jari");
     sensorConnected = true;
   } else {
-    Serial.println("Sensor GAGAL di awal!");
+    Serial.println("Sensor GAGAL!");
     printToDisplay("Sensor Error", "Cek Kabel!");
     sensorConnected = false;
-    beep(3, 200); // Bunyi error 3x
+    beep(3, 200); 
   }
 
-  // Setup WebSocket
   webSocket.begin(backend_ip, backend_port, "/ws");
   webSocket.onEvent(webSocketEvent);
   webSocket.setReconnectInterval(5000);
+  webSocket.enableHeartbeat(2000, 6000, 2);
 }
 
 // --- FUNGSI UTAMA ABSENSI ---
 int getFingerprintID() {
-  // Hanya ambil gambar jika status OK
   uint8_t p = finger.getImage();
   if (p != FINGERPRINT_OK) return -1;
 
@@ -263,19 +274,18 @@ int getFingerprintID() {
   if (p != FINGERPRINT_OK) {
     Serial.println("Jari Tidak Dikenal");
     printToDisplay("Akses Ditolak", "Coba Lagi");
-    beep(2, 80); // Bunyi Tet-Tet (Gagal)
+    beep(2, 80); 
     smartDelay(1000); 
-    printToDisplay("Siap Scan", "Tempel Jari");
+    if (isBackendConnected) printToDisplay("Siap Scan", "Tempel Jari");
     return -1;
   }
   
-  // Berhasil
   Serial.printf("Jari ID: #%d\n", finger.fingerID);
-  printToDisplay("Selamat Datang", "ID: " + String(finger.fingerID));
-  beep(1, 300); // Bunyi Teeeet (Sukses)
+  printToDisplay("Berhasil Terkirim", "Dengan ID: " + String(finger.fingerID));
+  beep(1, 300); 
   
-  kirimDataKeBackend("ABSENSI", finger.fingerID, "sukses", "dummy_auto");
-  smartDelay(1500); // Tahan tampilan sebentar
+  kirimDataKeBackend("ABSENSI", finger.fingerID, "sukses", "sensor_fisik");
+  smartDelay(1500); 
   printToDisplay("Siap Scan", "Tempel Jari");
   
   return finger.fingerID; 
@@ -286,8 +296,16 @@ void loop() {
   webSocket.loop();
   unsigned long currentMillis = millis();
 
-  // 1. LOGIKA AUTO RECONNECT SENSOR
-  // Jika sensor putus, cek ulang setiap 5 detik
+  // 1. PRIORITAS TUGAS DARI BACKEND (Flag Check)
+  if (enrollRequested) {
+    Serial.println(">> Menjalankan Perintah Enroll...");
+    getFingerprintEnroll(enrollId);
+    enrollRequested = false; // Reset bendera
+    enrollId = 0;
+    return; // Skip scan sensor di putaran ini
+  }
+
+  // 2. AUTO RECONNECT SENSOR
   if (!sensorConnected && (currentMillis - lastCheckSensor >= 5000)) {
     lastCheckSensor = currentMillis;
     Serial.println("Mencoba konek sensor ulang...");
@@ -302,19 +320,15 @@ void loop() {
     }
   }
 
-  // 2. LOGIKA SCAN
-  // Hanya scan jika sensor connect
-  if (sensorConnected) {
+  // 3. LOGIKA SCAN (Hanya jika sensor & backend aman)
+  if (sensorConnected && isBackendConnected) {
     if (currentMillis - previousMillis >= interval) {
-      // Kita panggil fungsi scan
       int result = getFingerprintID();
       
-      // Jika ada aktivitas, reset timer
       if (result != -1) {
          previousMillis = currentMillis;
       }
     } else {
-       // Opsional: Scan di sela interval agar responsif
        getFingerprintID();
     }
   }

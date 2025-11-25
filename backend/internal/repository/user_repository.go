@@ -55,8 +55,6 @@ func (repo *UserRepository) IsUserExist(data *model.CreateUserRequest) (string, 
 }
 
 func (repo *UserRepository) DeleteUser(id string) error {
-	fmt.Println(id)
-	fmt.Println("asdasdasd")
 	query := `DELETE FROM users WHERE id = $1`
 	result, err := repo.DB.Exec(query, id)
 	if err != nil {
@@ -72,4 +70,24 @@ func (repo *UserRepository) DeleteUser(id string) error {
 	}
 
 	return nil
+}
+
+func (repo *UserRepository) GetAllUser() ([]model.UserResponse, error) {
+	query := `SELECT id, nik, full_name FROM users`
+	result, err := repo.DB.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("gagal mendapatkan data dari database :%w", err)
+	}
+
+	var rows []model.UserResponse
+
+	for result.Next() {
+		var row = model.UserResponse{}
+		result.Scan(&row.ID, &row.NIK, &row.FullName)
+
+		rows = append(rows, row)
+	}
+
+	return rows, nil
+
 }
