@@ -18,3 +18,13 @@ type RawFingerLog struct {
 type FingerLogRequest struct {
 	Date string `json:"date"`
 }
+
+type DetailLogRequest struct {
+	Date string `json:"date"`
+}
+
+type DetailLogResponse struct {
+	ID     int       `json:"id"`
+	Detail string    `json:"detail"`
+	Date   time.Time `json:"date"`
+}

@@ -7,15 +7,15 @@
 #include <LiquidCrystal_I2C.h>
 
 // --- KONFIGURASI WIFI & SERVER ---
-const char* ssid = "Ibnu";
-const char* password = "12345678";
-const char* backend_ip = "192.168.0.2"; 
-const int backend_port = 8080;
-
-// const char* ssid = "2.4G";
-// const char* password = "Qw3rtyGrapha2023";
-// const char* backend_ip = "192.168.0.58"; 
+// const char* ssid = "Ibnu";
+// const char* password = "12345678";
+// const char* backend_ip = "192.168.0.2"; 
 // const int backend_port = 8080;
+
+const char* ssid = "PRD_2.4G";
+const char* password = "Qw3rtyGrapha2023";
+const char* backend_ip = "192.168.0.58"; 
+const int backend_port = 8080;
 
 
 
@@ -199,7 +199,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
     case WStype_CONNECTED:
       Serial.println("[WS] Terhubung!");
       isBackendConnected = true;
-      printToDisplay("Server OK", "");
+      printToDisplay("Server OK", "Siap Scan");
       beep(1, 100);
       break;
     case WStype_TEXT:

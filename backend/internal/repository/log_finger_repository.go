@@ -102,3 +102,21 @@ func (repo *FingerLogRepository) GetFingerLog(date string) ([]model.FingerLogRes
 	// Tidak perlu looping map lagi disini, karena 'data' sudah terisi rapi & urut
 	return data, nil
 }
+
+func (db *FingerLogRepository) GetDetailLog(request model.DetailLogRequest) (*model.DetailLogResponse, error) {
+	response := model.DetailLogResponse{}
+	query := `SELECT * FROM detaillog where "date" = $1`
+	err := db.DB.QueryRow(query, request.Date).Scan(&response.ID, &response.Detail, &response.Date)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("tidak ada data :%w", err)
+
+		}
+		fmt.Println(err)
+
+		return nil, fmt.Errorf("gagal mengambil data ke tabel detail :%w", err)
+	}
+	fmt.Println(response.Detail)
+
+	return &response, nil
+}

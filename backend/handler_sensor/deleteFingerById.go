@@ -4,13 +4,15 @@ import (
 	"Steril-App/model"
 	"Steril-App/ws"
 	"fmt"
+	"net/http"
+
+	"github.com/labstack/echo/v4"
 )
 
-func DeleteFingerByID(fingerID string) error {
-	// 1. Ambil data ID yang mau dihapus
-	payload := model.ScanCommand{
-		ID:      fingerID,
-		Command: "DELETE",
+func DeleteFingerByID(c echo.Context) error {
+	payload := model.ScanCommand{}
+	if err := c.Bind(&payload); err != nil {
+		return c.JSON(http.StatusBadRequest, "Format data salah")
 	}
 
 	// 2. Set Perintah

@@ -63,12 +63,17 @@ func main() {
 	// Routes
 	e.POST("/create", userHandler.CreateUser)
 	e.DELETE("/delete/:id", userHandler.DeleteUser)
-	e.POST("/get", fingerLogHandler.GetFingerLog)
+
 	e.GET("/users", userHandler.GetAllUser)
 
+	e.POST("/get", fingerLogHandler.GetFingerLog)
+	e.POST("/detaillog", fingerLogHandler.GetDetailLog)
+
+	//Sensor
 	e.GET("/ws", wsHandler.HandleWebSocket)
 	e.GET("/scan", handlersensor.ScanRegisteredFinger)
 	e.POST("/add", handlersensor.AddFingerByID)
+	e.POST("/del", handlersensor.DeleteFingerByID)
 
 	// Jalankan server
 	e.Logger.Fatal(e.Start(":8080"))

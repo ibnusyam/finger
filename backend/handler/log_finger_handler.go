@@ -3,6 +3,7 @@ package handler
 import (
 	"Steril-App/internal/repository"
 	"Steril-App/model"
+	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -20,6 +21,21 @@ func (h *LogFingerHandler) GetFingerLog(c echo.Context) error {
 	request := model.FingerLogRequest{}
 	c.Bind(&request)
 	result, err := h.Repo.GetFingerLog(request.Date)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+			"error": err,
+		})
+	}
+	return c.JSON(http.StatusOK, result)
+}
+
+func (h *LogFingerHandler) GetDetailLog(c echo.Context) error {
+	request := model.DetailLogRequest{}
+	err := c.Bind(&request)
+	if err != nil {
+		fmt.Println(err)
+	}
+	result, err := h.Repo.GetDetailLog(request)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
 			"error": err,
